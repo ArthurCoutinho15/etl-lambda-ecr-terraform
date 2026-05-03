@@ -12,7 +12,7 @@ resource "aws_lambda_function" "etl" {
   environment {
     variables = {
       BUCKET_NAME = aws_s3_bucket.data_lake.bucket
-      API_TOKEN   = "xxxx"
+      API_TOKEN   = var.api_token
     }
   }
 }
