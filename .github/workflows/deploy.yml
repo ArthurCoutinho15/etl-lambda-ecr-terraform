@@ -6,7 +6,40 @@ on:
       - main
 
 jobs:
+  infra:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Apply (Infra)
+        working-directory: terraform
+        run: |
+          terraform apply -auto-approve \
+            -target=aws_ecr_repository.lambda_repo \
+            -target=aws_iam_role.lambda_role \
+            -target=aws_iam_role_policy.lambda_s3 \
+            -target=aws_s3_bucket.data_lake
+        env:
+          TF_VAR_api_token: ${{ secrets.API_TOKEN }}
+
   deploy:
+    needs: infra
     runs-on: ubuntu-latest
 
     steps:
@@ -44,8 +77,8 @@ jobs:
         working-directory: terraform
         run: terraform init
 
-      - name: Terraform Apply
+      - name: Terraform Apply (Lambda)
         working-directory: terraform
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -target=aws_lambda_function.etl
         env:
           TF_VAR_api_token: ${{ secrets.API_TOKEN }}
